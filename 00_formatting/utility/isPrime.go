@@ -18,7 +18,7 @@ func IsPrime(value int) bool {
 	if value < 2 {
 		return false
 	} else {
-		cache := map[int]bool{2: true, 3: true, 5: true} // use if-else instead
+		cache := map[int]bool{2: true, 3: true, 5: true}
 		if cache[value] {
 			return true
 		}
