@@ -10,6 +10,6 @@ EXPRESSION="$1";
 #cp -rv "./mandelbrot.go" "$tmp";
 cat "./mandelbrot.go" | awk '{ gsub("{{EXPRESSION}}","'"$EXPRESSION"'",$0); print($0); }' > "$tmp";
 
-go run "$tmp";
+time go run "$tmp";
 
 rm "$tmp";
