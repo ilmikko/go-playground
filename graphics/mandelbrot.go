@@ -21,6 +21,7 @@ func main(){
 	ctx.SetRGB(1,1,1);
 	ctx.Clear();
 
+	sum := 0.0;
 	ctx.SetRGB(0,0,0);
 	// Loop through every pixel
 	// TODO: This loop could be threaded, as a pixel need not know its neighbor to calculate its value.
@@ -37,11 +38,29 @@ func main(){
 			x := float64(mathX) - float64(mathW)/2 + px*float64(mathW);
 			y := float64(mathY) - float64(mathH)/2 + py*float64(mathH);
 
-			if {{EXPRESSION}} {
-				ctx.SetPixel(pixelX,pixelY);
+			// Save the initial values
+			x0 := x;
+			y0 := y;
+
+			for iteration := 0; iteration < 10; iteration++ {
+				if {{EXPRESSION}} {
+					// The value is (still) inside the set
+					// Perform transformations on both x and y
+					oldx := x;
+					oldy := y;
+					x = oldx*oldx - oldy*oldy + x0;
+					y = 2*oldx*oldy + y0;
+				} else {
+					// The value escaped the set
+					ctx.SetPixel(pixelX,pixelY);
+					break;
+				}
 			}
+
+			sum += x + y;
 		}
 	}
 
 	ctx.SavePNG("{{EXPRESSION}}.png");
+	fmt.Printf("%i\n",sum);
 }
