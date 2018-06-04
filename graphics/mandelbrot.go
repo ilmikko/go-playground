@@ -55,21 +55,22 @@ func getColor(p float64, palette palette) (float64, float64, float64){
 }
 
 func main(){
-	testPalette := palette{color{1,1,1},color{0,0,0}};
+	//paletteBNW := palette{color{0,0,0},color{1,1,1}};
+	paletteRainbow := palette{color{0,0,0},color{1,0,0},color{1,1,0},color{0,1,0},color{0,1,1},color{0,0,1},color{1,0,1},color{1,1,1}};
 
 	fmt.Printf("%s\n","Running {{EXPRESSION}}");
 
 	// Canvas definitions
-	pixelW := 1000;
-	pixelH := 1000;
+	pixelW := {{RESX}};
+	pixelH := {{RESY}};
 
 	// Math definitions
-	mathX := 0;
-	mathY := 0;
-	mathW := 4;
-	mathH := 4;
+	mathX := {{VIEWX}};
+	mathY := {{VIEWY}};
+	mathW := {{VIEWW}};
+	mathH := {{VIEWH}};
 
-	maxiterations := 50;
+	maxiterations := {{ITERATIONS}};
 
 	ctx := gg.NewContext(pixelW, pixelH);
 
@@ -108,7 +109,7 @@ func main(){
 				} else {
 					// The value escaped the set
 					// Calculate the color
-					r,g,b := getColor(float64(iteration)/float64(maxiterations),testPalette);
+					r,g,b := getColor(float64(iteration)/float64(maxiterations),paletteRainbow);
 					ctx.SetRGB(r,g,b);
 					ctx.SetPixel(pixelX,pixelY);
 					break;
