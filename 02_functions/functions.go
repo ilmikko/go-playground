@@ -26,6 +26,7 @@ func getSlice(N int, max float32) []float32 {
 		a := random.Float32()*max + 1                // get range [1-max] instead of [0.0-1.0]
 		slice = append(slice, a-(a-float32(int(a)))) // discard decimal place
 	}
+	// fmt.Println("it is", random.Intn(N))
 	return slice
 }
 

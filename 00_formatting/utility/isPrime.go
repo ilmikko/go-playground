@@ -1,19 +1,5 @@
-package main
+package utility
 
-import (
-	"fmt"
-	"os"
-	"strconv"
-)
-
-func main() {
-	if len(os.Args) > 0 {
-		number, err := strconv.Atoi(os.Args[1])
-		if err == nil {
-			fmt.Println(IsPrime(number))
-		}
-	}
-}
 func IsPrime(value int) bool {
 	if value < 2 {
 		return false
