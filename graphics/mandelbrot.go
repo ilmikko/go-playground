@@ -2,19 +2,74 @@ package main;
 
 import "github.com/fogleman/gg";
 import "fmt";
+import "math";
+
+// Color is three floats r,g,b between 0..1
+type color [3]float64;
+
+// Palette is a list of colors
+type palette []color;
+
+// Get the fractional component of a float (3.14159 -> 0.14159)
+func frac(f float64) (float64){
+	return f-math.Floor(f);
+}
+
+func getColor(p float64, palette palette) (float64, float64, float64){
+	// Get a color from the palette using p which is 0..1
+
+	p *= float64(len(palette)); // Scale to the size of our palette
+	index := int(math.Floor(p)); // Floor to an index
+
+	var r float64;
+	var g float64;
+	var b float64;
+
+	// Because we Floor, there should be always a color at index+1.
+	// In the (rare) case palette[index+1] does not exist, we return palette[index].
+	if (index+1<len(palette)) {
+		//r,g,b = palette[index+1]; //???
+		// Calculate a value between these two colors
+		r1 := palette[index][0];
+		g1 := palette[index][1];
+		b1 := palette[index][2];
+
+		r2 := palette[index+1][0];
+		g2 := palette[index+1][1];
+		b2 := palette[index+1][2];
+
+		// Get the fractional part of p
+		f := frac(p);
+		// Use the fractional part to lerp between these two values
+		r = r1 + (r2-r1)*f;
+		g = g1 + (g2-g1)*f;
+		b = b1 + (b2-b1)*f;
+	} else {
+		//r,g,b = palette[index]; //????
+		r = palette[index][0];
+		g = palette[index][1];
+		b = palette[index][2];
+	}
+
+	return r,g,b;
+}
 
 func main(){
+	testPalette := palette{color{1,1,1},color{0,0,0}};
+
 	fmt.Printf("%s\n","Running {{EXPRESSION}}");
 
 	// Canvas definitions
-	pixelW := 100;
-	pixelH := 100;
+	pixelW := 1000;
+	pixelH := 1000;
 
 	// Math definitions
 	mathX := 0;
 	mathY := 0;
 	mathW := 4;
 	mathH := 4;
+
+	maxiterations := 50;
 
 	ctx := gg.NewContext(pixelW, pixelH);
 
@@ -42,16 +97,19 @@ func main(){
 			x0 := x;
 			y0 := y;
 
-			for iteration := 0; iteration < 10; iteration++ {
+			for iteration := 0; iteration < maxiterations; iteration++ {
 				if {{EXPRESSION}} {
 					// The value is (still) inside the set
 					// Perform transformations on both x and y
-					oldx := x;
-					oldy := y;
-					x = oldx*oldx - oldy*oldy + x0;
-					y = 2*oldx*oldy + y0;
+					newx := {{TRANSFORMX}};
+					newy := {{TRANSFORMY}};
+					x = newx;
+					y = newy;
 				} else {
 					// The value escaped the set
+					// Calculate the color
+					r,g,b := getColor(float64(iteration)/float64(maxiterations),testPalette);
+					ctx.SetRGB(r,g,b);
 					ctx.SetPixel(pixelX,pixelY);
 					break;
 				}

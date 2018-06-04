@@ -1,14 +1,23 @@
 #!/bin/bash
 # So Golang does not support C-like macros.
 
-[ -z "$1" ] && echo "Usage: $0 [expression]" && exit 1;
-
 tmp=$(mktemp "./XXXXXX.go");
 
-EXPRESSION="$1";
+EXPRESSION="x*x + y*y < 4";
+TRANSFORMX="x*x - y*y + x0";
+TRANSFORMY="2*x*y + y0";
+
+sub() {
+	str="";
+	for key in $@; do
+		val=$(eval echo "\$$key");
+		str='gsub("{{'"$key"'}}","'"$val"'",$0); '$str;
+	done
+	awk '{'"$str"'print($0); }';
+}
 
 #cp -rv "./mandelbrot.go" "$tmp";
-cat "./mandelbrot.go" | awk '{ gsub("{{EXPRESSION}}","'"$EXPRESSION"'",$0); print($0); }' > "$tmp";
+cat "./mandelbrot.go" | sub "EXPRESSION" "TRANSFORMX" "TRANSFORMY" > "$tmp";
 
 time go run "$tmp";
 
