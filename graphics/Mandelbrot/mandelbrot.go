@@ -2,10 +2,15 @@ package main;
 
 import "github.com/fogleman/gg";
 import "fmt";
+import "time";
 import "math";
+import "math/rand";
 
 // Color is three floats r,g,b between 0..1
 type color [3]float64;
+
+// A pixel is always two integers, like 30,30
+type pixel [2]int;
 
 // Palette is a list of colors
 type palette []color;
@@ -68,17 +73,25 @@ var mathH = {{VIEWH}};
 var paletteRainbow = palette{color{0,0,0},color{1,0,0},color{1,1,0},color{0,1,0},color{0,1,1},color{0,0,1},color{1,0,1},color{1,1,1}};
 var paletteBNW = palette{color{0,0,0},color{1,1,1}};
 
-func renderZoomCrosshair(ctx *gg.Context, x int, y int){
+func renderZoomCrosshair(ctx *gg.Context, x int, y int, s float64){
 	ctx.SetLineWidth(3);
 	ctx.SetRGB(0,0,0);
 
+	// Vertical line
 	ctx.DrawLine(float64(x),0,float64(x),float64(pixelH));
 	ctx.Stroke();
 
+	// Horizontal line
 	ctx.DrawLine(0,float64(y),float64(pixelW),float64(y));
 	ctx.Stroke();
 
+	// Topleft helper
 	ctx.DrawLine(0,0,float64(x),float64(y));
+	ctx.Stroke();
+
+	// Scale helper rectangle
+	rw, rh := float64(pixelW)/s, float64(pixelH)/s;
+	ctx.DrawRectangle(float64(x)-rw/2,float64(y)-rh/2,rw,rh);
 	ctx.Stroke();
 }
 
@@ -104,6 +117,9 @@ func renderImage(ctx *gg.Context, filename string){
 	iterations := {{ITERATIONS}};
 
 	ctx.SetRGB(0,0,0);
+
+	interestingPixels := []pixel{};
+
 	// Loop through every pixel
 	// TODO: This loop could be threaded, as a pixel need not know its neighbor to calculate its value.
 	for pixelX := 0; pixelX < pixelW; pixelX++ {
@@ -114,8 +130,11 @@ func renderImage(ctx *gg.Context, filename string){
 			x0 := x;
 			y0 := y;
 
+			// Track the min iteration to crack the pixels
+			minIteration := iterations;
+
 			for iteration := 0; iteration < iterations; iteration++ {
-				if {{EXPRESSION}} {
+				if ({{EXPRESSION}}) {
 					// The value is (still) inside the set
 					// Perform transformations on both x and y
 					newx := {{TRANSFORMX}};
@@ -128,6 +147,20 @@ func renderImage(ctx *gg.Context, filename string){
 					r,g,b := getColor(float64(iteration)/float64(iterations),paletteRainbow);
 					ctx.SetRGB(r,g,b);
 					ctx.SetPixel(pixelX,pixelY);
+
+					// Update the min iteration
+					if (iteration < minIteration) {
+						minIteration = iteration;
+					}
+
+					// Because we are zooming in, we want to see how interesting this pixel is. The most interesting pixels will be chosen to act as the next bunch of centers for the zoom-in.
+					if (iteration==(iterations+minIteration)/2){
+						// Interesting enough to be considered
+						// DEBUG: Color the interesting pixels above the treshold as black
+						interestingPixels = append(interestingPixels, pixel{pixelX, pixelY});
+						ctx.SetRGB(0,0,0);
+						ctx.SetPixel(pixelX,pixelY);
+					}
 					break;
 				}
 			}
@@ -135,14 +168,18 @@ func renderImage(ctx *gg.Context, filename string){
 	}
 
 	// Get a zoom in crosshair, calculate the pixel values
-	//zoomX := mathX+0.1;
-	//zoomY := mathY+0.1;
-
-	pixelZoomX := 500;
-	pixelZoomY := 600;
+	// Which pixels were the most interesting? Zoom there!
+	length := len(interestingPixels);
+	interestingPixel := pixel{int(rand.Float64()*float64(pixelW)),int(rand.Float64()*float64(pixelH))};
+	if (length > 0) {
+		interestingPixel = interestingPixels[int(rand.Float64()*float64(length))];
+	}
+	pixelZoomX := interestingPixel[0];
+	pixelZoomY := interestingPixel[1];
+	pixelZoomS := 2.0;
 
 	// Render the zoom in crosshair for debug
-	renderZoomCrosshair(ctx,pixelZoomX,pixelZoomY);
+	renderZoomCrosshair(ctx,pixelZoomX,pixelZoomY,pixelZoomS);
 
 	// Get the coordinates for this pixel
 	x, y := getMathCoordinates(pixelZoomX, pixelZoomY);
@@ -152,13 +189,21 @@ func renderImage(ctx *gg.Context, filename string){
 	mathX = x;
 	mathY = y;
 
+	// Get new scale from zoom level
+	mathW /= pixelZoomS;
+	mathH /= pixelZoomS;
+
 	ctx.SavePNG(filename);
 }
 
 func main(){
+	rand.Seed(time.Now().UTC().UnixNano());
+
 	fmt.Printf("%s\n","Running `{{EXPRESSION}}` for {{ITERATIONS}} iterations");
 
 	ctx := gg.NewContext(pixelW, pixelH);
 
-	renderImage(ctx, "{{EXPRESSION}}.png");
+	for i := 0; i < 10; i++ {
+		renderImage(ctx, fmt.Sprintf("%s-%f.png","{{EXPRESSION}}",float64(i)));
+	}
 }

@@ -11,7 +11,7 @@ RESY=1000;
 EXPRESSION="x*x + y*y < 4";
 TRANSFORMX="x*x - y*y + x0";
 TRANSFORMY="2*x*y + y0";
-ITERATIONS=1000;
+ITERATIONS=100;
 
 # View position in the set
 VIEWX=0.213;
