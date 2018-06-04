@@ -14,10 +14,14 @@ TRANSFORMY="2*x*y + y0";
 ITERATIONS=100;
 
 # View position in the set
-VIEWX=0.213;
-VIEWY=-0.5455;
-VIEWW=0.1;
-VIEWH=0.1;
+#VIEWX=0.213;
+#VIEWY=-0.5455;
+#VIEWW=0.1;
+#VIEWH=0.1;
+VIEWX="0.0";
+VIEWY="0.0";
+VIEWW="4.0";
+VIEWH="4.0";
 
 sub() {
 	str="";

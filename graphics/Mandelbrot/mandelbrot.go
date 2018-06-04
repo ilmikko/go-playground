@@ -204,6 +204,6 @@ func main(){
 	ctx := gg.NewContext(pixelW, pixelH);
 
 	for i := 0; i < 10; i++ {
-		renderImage(ctx, fmt.Sprintf("%s-%f.png","{{EXPRESSION}}",float64(i)));
+		renderImage(ctx, fmt.Sprintf("%s-%f-%f,%fx%f.png","{{EXPRESSION}}", float64(i), float64(mathX), float64(mathY), float64(mathW)));
 	}
 }
