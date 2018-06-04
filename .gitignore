@@ -13,3 +13,6 @@
 .DS_Store
 *.#*
 *#*
+
+# All the png files created in the graphics go programs
+graphics/*.png
