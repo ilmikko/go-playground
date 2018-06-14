@@ -2,6 +2,7 @@ package main;
 
 import "github.com/fogleman/gg";
 import "fmt";
+import "os";
 import "time";
 import "math";
 import "math/rand";
@@ -12,17 +13,29 @@ type color [3]float64;
 // A pixel is always two integers, like 30,30
 type pixel [2]int;
 
+// A saved value contains the calculated value to a pixel.
+type savedValue [2]float64;
+
 // Palette is a list of colors
 type palette []color;
 
 // Get the fractional component of a float (3.14159 -> 0.14159)
-func frac(f float64) (float64){
+func frac(f float64) (float64) {
 	return f-math.Floor(f);
+}
+
+func abs(i int) (int) {
+	if (i < 0) {
+		return -i;
+	} else {
+		return i;
+	}
 }
 
 func getColor(p float64, palette palette) (float64, float64, float64){
 	// Get a color from the palette using p which is 0..1
 
+	p = frac(p);
 	p *= float64(len(palette)); // Scale to the size of our palette
 	index := int(math.Floor(p)); // Floor to an index
 
@@ -70,7 +83,7 @@ var mathW = {{VIEWW}};
 var mathH = {{VIEWH}};
 
 // Palettes
-var paletteRainbow = palette{color{0,0,0},color{1,0,0},color{1,1,0},color{0,1,0},color{0,1,1},color{0,0,1},color{1,0,1},color{1,1,1}};
+var paletteRainbow = palette{color{0,0,0},color{1,0,0},color{1,1,0},color{0,1,0},color{0,1,1},color{0,0,1},color{1,0,1},color{1,1,1},color{0,0,0}};
 var paletteBNW = palette{color{0,0,0},color{1,1,1}};
 
 func renderZoomCrosshair(ctx *gg.Context, x int, y int, s float64){
@@ -110,59 +123,145 @@ func getMathCoordinates(pixelX int, pixelY int) (float64, float64){
 	return x, y;
 }
 
+func renderHistogram(ctx *gg.Context, escapeHistogram []int){
+	// Some sweet histogram data!
+	for i := 0; i < len(escapeHistogram); i++ {
+		fmt.Printf("%d ", escapeHistogram[i]);
+	}
+
+	ctx.SetRGB(0,0,0);
+
+	for i := 0; i < len(escapeHistogram); i++ {
+		for h := 0; h < escapeHistogram[i]; h++ {
+			ctx.SetPixel(i,h);
+		}
+	}
+}
+
 func renderImage(ctx *gg.Context, filename string){
 	ctx.SetRGB(1,1,1);
 	ctx.Clear();
 
 	iterations := {{ITERATIONS}};
 
-	ctx.SetRGB(0,0,0);
-
 	interestingPixels := []pixel{};
+
+	escapeHistogram := make(map[int]int);
+	escapedPixels := 0;
+	skippedPixels := 0;
+	unescapedPixels := make(map[int]map[int]savedValue);
 
 	// Loop through every pixel
 	// TODO: This loop could be threaded, as a pixel need not know its neighbor to calculate its value.
-	for pixelX := 0; pixelX < pixelW; pixelX++ {
-		for pixelY := 0; pixelY < pixelH; pixelY++ {
-			x, y := getMathCoordinates(pixelX, pixelY);
 
-			// Save the initial values
-			x0 := x;
-			y0 := y;
+	iterationChunk := 50;
+	currentIteration := 0;
 
-			// Track the min iteration to crack the pixels
-			minIteration := iterations;
+	for {
+		for pixelX := 0; pixelX < pixelW; pixelX++ {
+			for pixelY := 0; pixelY < pixelH; pixelY++ {
+				var x, y float64;
 
-			for iteration := 0; iteration < iterations; iteration++ {
-				if ({{EXPRESSION}}) {
-					// The value is (still) inside the set
-					// Perform transformations on both x and y
-					newx := {{TRANSFORMX}};
-					newy := {{TRANSFORMY}};
-					x = newx;
-					y = newy;
-				} else {
-					// The value escaped the set
-					// Calculate the color
-					r,g,b := getColor(float64(iteration)/float64(iterations),paletteRainbow);
-					ctx.SetRGB(r,g,b);
-					ctx.SetPixel(pixelX,pixelY);
+				x, y = getMathCoordinates(pixelX, pixelY);
 
-					// Update the min iteration
-					if (iteration < minIteration) {
-						minIteration = iteration;
+				// Save the initial values
+				x0 := x;
+				y0 := y;
+
+				// Why are you like this?
+				_, ok := unescapedPixels[pixelX];
+				if (ok==true) {
+					_, ok2 := unescapedPixels[pixelX][pixelY];
+					if (ok2==true) {
+						previousValue := unescapedPixels[pixelX][pixelY];
+						x = previousValue[0];
+						y = previousValue[1];
+						if (pixelX == 0 && pixelY == 0){
+							fmt.Printf("%d, %d = %f %f", pixelX, pixelY, x, y);
+						}
 					}
-
-					// Because we are zooming in, we want to see how interesting this pixel is. The most interesting pixels will be chosen to act as the next bunch of centers for the zoom-in.
-					if (iteration==(iterations+minIteration)/2){
-						// Interesting enough to be considered
-						// DEBUG: Color the interesting pixels above the treshold as black
-						interestingPixels = append(interestingPixels, pixel{pixelX, pixelY});
-						ctx.SetRGB(0,0,0);
-						ctx.SetPixel(pixelX,pixelY);
-					}
-					break;
+					ok = ok && ok2;
 				}
+
+				// Skip pixels that are already escaped
+				if (currentIteration > 0 && !ok) {
+					skippedPixels++;
+					continue;
+				}
+
+				// Track the min iteration to crack the pixels
+				minIteration := currentIteration+iterationChunk;
+
+				for iteration := currentIteration; iteration < currentIteration+iterationChunk; iteration++ {
+					if ({{EXPRESSION}}) {
+						// The value is (still) inside the set
+						// Perform transformations on both x and y
+						newx := {{TRANSFORMX}};
+						newy := {{TRANSFORMY}};
+						x = newx;
+						y = newy;
+
+						if (iteration == currentIteration+iterationChunk-1) {
+							// Put this pixel into the map in case we do a re-run
+							if (unescapedPixels[pixelX] == nil) {
+								unescapedPixels[pixelX] = map[int]savedValue{};
+							}
+							unescapedPixels[pixelX][pixelY] = savedValue{x,y};
+						}
+					} else {
+						// The value escaped the set
+						// Calculate the color
+						r,g,b := getColor(float64(iteration)/float64(iterations),paletteRainbow);
+						ctx.SetRGB(r,g,b);
+						ctx.SetPixel(pixelX,pixelY);
+
+						_, ok := escapeHistogram[iteration];
+						if (!ok) {
+							escapeHistogram[iteration] = 0;
+						}
+						escapeHistogram[iteration]++;
+
+						escapedPixels++;
+
+						_, ok = unescapedPixels[pixelX];
+						if (ok) {
+							delete(unescapedPixels[pixelX],pixelY);
+						}
+
+						// Update the min iteration
+						if (iteration < minIteration) {
+							minIteration = iteration;
+						}
+
+						// Because we are zooming in, we want to see how interesting this pixel is. The most interesting pixels will be chosen to act as the next bunch of centers for the zoom-in.
+						if (iteration==(currentIteration+iterationChunk+minIteration)/2){
+							// Interesting enough to be considered
+							interestingPixels = append(interestingPixels, pixel{pixelX, pixelY});
+							// DEBUG: Color the interesting pixels above the treshold as black
+							//ctx.SetRGB(0,0,0);
+							//ctx.SetPixel(pixelX,pixelY);
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		currentIteration += iterationChunk;
+		// Check if it's time to stop.
+		// Get the last 10 values and determine how much the values have changed
+		sampleSize := 10;
+
+		// Make sure we have enough iterations.
+		if (currentIteration > sampleSize) {
+			changeDelta := 0;
+			for g := 0; g < sampleSize; g++ {
+				changeDelta += abs(escapeHistogram[currentIteration-1-g]-escapeHistogram[currentIteration-2-g]);
+			}
+
+			fmt.Printf("%d - %d Change delta: %d\n", escapedPixels, skippedPixels, changeDelta);
+			if (changeDelta < 256) {
+				break;
 			}
 		}
 	}
@@ -176,10 +275,10 @@ func renderImage(ctx *gg.Context, filename string){
 	}
 	pixelZoomX := interestingPixel[0];
 	pixelZoomY := interestingPixel[1];
-	pixelZoomS := 2.0;
+	pixelZoomS := 1.5;
 
 	// Render the zoom in crosshair for debug
-	renderZoomCrosshair(ctx,pixelZoomX,pixelZoomY,pixelZoomS);
+	// renderZoomCrosshair(ctx,pixelZoomX,pixelZoomY,pixelZoomS);
 
 	// Get the coordinates for this pixel
 	x, y := getMathCoordinates(pixelZoomX, pixelZoomY);
@@ -193,6 +292,8 @@ func renderImage(ctx *gg.Context, filename string){
 	mathW /= pixelZoomS;
 	mathH /= pixelZoomS;
 
+	//renderHistogram(ctx,escapeHistogram);
+
 	ctx.SavePNG(filename);
 }
 
@@ -203,7 +304,11 @@ func main(){
 
 	ctx := gg.NewContext(pixelW, pixelH);
 
-	for i := 0; i < 10; i++ {
-		renderImage(ctx, fmt.Sprintf("%s-%f-%f,%fx%f.png","{{EXPRESSION}}", float64(i), float64(mathX), float64(mathY), float64(mathW)));
+	dir := "./"+fmt.Sprintf("%d",time.Now().UTC().UnixNano())+"/";
+
+	os.Mkdir(dir,0755);
+
+	for i := 0; i < {{IMAGES}}; i++ {
+		renderImage(ctx, fmt.Sprintf(dir+"%s-%f-%f,%fx%f.png","{{EXPRESSION}}", float64(i), float64(mathX), float64(mathY), float64(mathW)));
 	}
 }

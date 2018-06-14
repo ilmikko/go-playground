@@ -6,12 +6,13 @@ tmp=$(mktemp "./XXXXXX.go");
 # Render output
 RESX=1000;
 RESY=1000;
+IMAGES=30;
 
 # Some maths
 EXPRESSION="x*x + y*y < 4";
 TRANSFORMX="x*x - y*y + x0";
 TRANSFORMY="2*x*y + y0";
-ITERATIONS=100;
+ITERATIONS=1000;
 
 # View position in the set
 #VIEWX=0.213;
@@ -33,7 +34,7 @@ sub() {
 }
 
 #cp -rv "./mandelbrot.go" "$tmp";
-cat "./mandelbrot.go" | sub "RESX" "RESY" "VIEWX" "VIEWY" "VIEWW" "VIEWH" "ITERATIONS" "EXPRESSION" "TRANSFORMX" "TRANSFORMY" > "$tmp";
+cat "./mandelbrot.go" | sub "IMAGES" "RESX" "RESY" "VIEWX" "VIEWY" "VIEWW" "VIEWH" "ITERATIONS" "EXPRESSION" "TRANSFORMX" "TRANSFORMY" > "$tmp";
 
 time go run "$tmp";
 
