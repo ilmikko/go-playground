@@ -268,8 +268,9 @@ func renderImage(ctx *gg.Context, filename string){
 
 	// Get a zoom in crosshair, calculate the pixel values
 	// Which pixels were the most interesting? Zoom there!
+	spread := 10.0; // How many pixels from the center we can spread in case there are no interesting pixels
 	length := len(interestingPixels);
-	interestingPixel := pixel{int(rand.Float64()*float64(pixelW)),int(rand.Float64()*float64(pixelH))};
+	interestingPixel := pixel{int(float64(pixelW)/2.0+(rand.Float64()-0.5)*spread),int(float64(pixelH)/2.0+(rand.Float64()-0.5)*spread)};
 	if (length > 0) {
 		interestingPixel = interestingPixels[int(rand.Float64()*float64(length))];
 	}
